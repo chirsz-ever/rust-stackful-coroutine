@@ -90,6 +90,10 @@ fn func() {
 }
 
 fn main() {
+    if !cfg!(target_arch = "x86") {
+        eprintln!("this example only support 32bit x86 target!");
+        return;
+    }
     unsafe {
         MAIN_CTX = init_ctx(main);
 
