@@ -7,6 +7,10 @@ edition = "2021"
 [[bin]]
 name = "reimplement"
 
+# must run with a x86_64 target and sysv64 calling convention, such as `--target x86_64-unknown-linux-gnu`
+[[bin]]
+name = "reimplement64"
+
 [dependencies]
 rand = "0.8.5"
 
