@@ -14,18 +14,13 @@ const CTX_SIZE: usize = 1024;
 // *(ctx + CTX_SIZE - 8) 存储 rsp
 type Ctx = *mut *mut u8;
 
-extern "C" {
+extern "sysv64" {
     fn swap_ctx(current: Ctx, next: Ctx);
 }
 
 global_asm!(
     "
-    .globl swap_ctx
-#if !defined(__APPLE__)
-    .type  swap_ctx, @function
-#endif
-
-swap_ctx:
+{swap_ctx}:
     // 获取 swap_ctx 的第一个参数 char **current
     mov %rdi, %rax
 
@@ -57,6 +52,7 @@ swap_ctx:
     mov %rcx,    (%rsp) // restore return address
 
     ret",
+    swap_ctx = sym swap_ctx,
     options(att_syntax)
 );
 

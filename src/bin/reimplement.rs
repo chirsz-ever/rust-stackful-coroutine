@@ -26,7 +26,7 @@ static mut FUNC_CTX_2: Ctx = ptr::null_mut();
 static mut YIELD_COUNT: usize = 0;
 
 // 切换上下文，具体参见 stackful.s 的注释
-extern "C" {
+extern "cdecl" {
     fn swap_ctx(current: Ctx, next: Ctx);
 }
 
