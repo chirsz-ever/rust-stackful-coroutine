@@ -22,13 +22,10 @@
  * SOFTWARE.
  */
 
-    .globl swap_ctx
-#if !defined(__APPLE__)
-    .type  swap_ctx, @function
-#endif
+.globl {0}
 
 // extern void swap_ctx(char **current, char **next);
-swap_ctx:
+{0}:
 
     // 获取 swap_ctx 的第一个参数 char **current
     movl 4(%esp), %eax

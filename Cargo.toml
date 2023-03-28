@@ -13,5 +13,6 @@ name = "reimplement64"
 
 [dependencies]
 rand = "0.8.5"
+static_assertions = "1.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

@@ -1,11 +1,13 @@
 // reimplement stackful coroutine in https://mthli.xyz/stackful-stackless with stable rust
 // original code: https://github.com/mthli/blog/blob/master/content/blog/stackful-stackless
 
+static_assertions::assert_cfg!(target_arch = "x86");
+
 use rand::Rng;
 use std::{arch::global_asm, ptr};
 
 // source: https://github.com/mthli/blog/blob/master/content/blog/stackful-stackless/stackful.s
-global_asm!(include_str!("stackful.s"), options(att_syntax));
+global_asm!(include_str!("stackful.s"), sym swap_ctx, options(att_syntax));
 
 const CTX_SIZE: usize = 1024;
 
@@ -90,10 +92,6 @@ fn func() {
 }
 
 fn main() {
-    if !cfg!(target_arch = "x86") {
-        eprintln!("this example only support 32bit x86 target!");
-        return;
-    }
     unsafe {
         MAIN_CTX = init_ctx(main);
 
