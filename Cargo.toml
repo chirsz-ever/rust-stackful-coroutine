@@ -2,6 +2,7 @@
 name = "stackful-coroutine-demo"
 version = "0.1.0"
 edition = "2021"
+default-run = "stackful-coroutine-demo"
 
 # must run with a x86 target, such as `--target i686-unknown-linux-gnu`
 [[bin]]
