@@ -14,7 +14,7 @@ fn func(index: i32, tag: i32) {
 fn main() {
     let mut threads = Vec::new();
 
-    for index in 0..2 {
+    for index in 0..3 {
         threads.push(Coroutine::new(move || {
             let tag = rand::thread_rng().gen_range(0..100);
             for i in 0..3 {
