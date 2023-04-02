@@ -37,7 +37,7 @@ pub struct Context {
 impl Context {
     pub fn new(func: impl FnOnce()) -> Context {
         assert_eq!(core::mem::size_of::<usize>(), 8);
-        const DEFAULT_STACK_SIZE: usize = 1024 * 8;
+        const DEFAULT_STACK_SIZE: usize = 1024 * 1024 * 4;
         let size = DEFAULT_STACK_SIZE;
         let func = Box::new(Box::new(func) as Box<dyn FnOnce()>);
         let func = Box::into_raw(func);
