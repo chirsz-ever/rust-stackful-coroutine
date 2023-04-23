@@ -1,4 +1,4 @@
-#[cfg_attr(target_arch = "x86", path = "coroutine/platform/i386.rs")]
+#[cfg_attr(target_arch = "x86", path = "coroutine/platform/i686.rs")]
 #[cfg_attr(
     all(target_arch = "x86_64", windows),
     path = "coroutine/platform/win64.rs"
