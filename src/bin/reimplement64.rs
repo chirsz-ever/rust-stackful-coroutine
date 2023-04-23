@@ -1,6 +1,5 @@
 // reimplement stackful coroutine in https://mthli.xyz/stackful-stackless with stable rust in sysv64
 // original code: https://github.com/mthli/blog/blob/master/content/blog/stackful-stackless
-static_assertions::assert_cfg!(target_arch = "x86_64");
 
 use rand::Rng;
 use std::ptr;
@@ -203,6 +202,10 @@ fn func() {
 }
 
 fn main() {
+    if !cfg!(all(target_arch = "x86_64", not(windows))) {
+        eprintln!("this example only support x86_64 target and sysv64 calling convention!");
+        return;
+    }
     unsafe {
         MAIN_CTX = init_ctx(main);
 
