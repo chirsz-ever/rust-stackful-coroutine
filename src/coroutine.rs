@@ -38,13 +38,13 @@ impl<'a> Coroutine<'a> {
         }
 
         unsafe {
-            self.finished = resume_coroutine(self) != 0;
+            self.finished = resume_coroutine(self, 0) != 0;
         }
     }
 }
 
 pub fn yield_now() {
-    unsafe { return_from_coroutine(0) }
+    unsafe { return_from_coroutine(0); }
 }
 
 pub fn schedule(coros: &mut [Coroutine]) {

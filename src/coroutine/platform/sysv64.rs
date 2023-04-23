@@ -30,47 +30,54 @@ impl Drop for StackSpace {
 
 #[repr(C)]
 pub struct Context {
+    resume_addr: Address,
     resume_rsp: Address,
-    stack_space: StackSpace,
+    stack_space: Option<StackSpace>,
 }
 
 impl Context {
     pub fn new(func: impl FnOnce()) -> Context {
-        assert_eq!(core::mem::size_of::<usize>(), 8);
-        const DEFAULT_STACK_SIZE: usize = 1024 * 1024 * 4;
+        assert!(cfg!(all(target_arch = "x86_64", not(windows))));
+        const DEFAULT_STACK_SIZE: usize = 1024 * 1024 * 8;
         let size = DEFAULT_STACK_SIZE;
         let func = Box::new(Box::new(func) as Box<dyn FnOnce()>);
         let func = Box::into_raw(func);
         let stack_space = unsafe { StackSpace::new(size) };
-        // we use `ret` to branch to `coro_stub`
-        let stack_top = unsafe { stack_space.address.offset(size as isize) as *mut usize };
+        // we use jmp to goto coro_stub
+        let stack_top = unsafe { stack_space.address.offset(size as isize - 8) };
         unsafe {
-            stack_top.offset(-1).write(coro_stub as _);
-            stack_top.offset(-2).write(func as _);
-            Context {
-                resume_rsp: stack_top.offset(-8) as _,
-                stack_space,
-            }
+            (stack_top as *mut usize).write(func as _);
+        }
+        Context {
+            resume_addr: coro_stub as _,
+            resume_rsp: stack_top as _,
+            stack_space: Some(stack_space),
         }
     }
 }
 
-static mut MAIN_RSP: Address = 0;
-static mut CURRENT_CTX: *mut Context = core::ptr::null_mut();
+// context of main thread
+static mut MAIN_CTX: Context = Context {
+    resume_addr: 0,
+    resume_rsp: 0,
+    stack_space: None,
+};
 
-pub unsafe fn resume_coroutine(coro: &mut Coroutine) -> usize {
-    CURRENT_CTX = &mut coro.context;
-    swap_ctx(&mut MAIN_RSP, coro.context.resume_rsp, 0)
+static mut CURRENT_CORO_CTX: *mut Context = core::ptr::null_mut();
+
+pub unsafe fn resume_coroutine(coro: &mut Coroutine, val: usize) -> usize {
+    CURRENT_CORO_CTX = &mut coro.context;
+    swap_context(&mut MAIN_CTX, CURRENT_CORO_CTX, val)
 }
 
-pub unsafe extern "C" fn return_from_coroutine(value: usize) {
-    swap_ctx(&mut (*CURRENT_CTX).resume_rsp, MAIN_RSP, value);
+pub unsafe fn return_from_coroutine(ret: usize) -> usize {
+    swap_context(CURRENT_CORO_CTX, &mut MAIN_CTX, ret)
 }
 
-extern "C" {
+#[allow(improper_ctypes)]
+extern "sysv64" {
     fn coro_stub();
-
-    fn swap_ctx(current_rsp: *mut Address, next_rsp: Address, value: usize) -> usize;
+    fn swap_context(current: *mut Context, next: *mut Context, val: usize) -> usize;
 }
 
 unsafe extern "C" fn call_rust_fn(func: *mut Box<dyn FnOnce()>) {
@@ -79,44 +86,52 @@ unsafe extern "C" fn call_rust_fn(func: *mut Box<dyn FnOnce()>) {
 }
 
 // coro_stub
-// assume when start, function ptr is in rbp
+// assume when start, function ptr is in (%rsp)
 global_asm!(
     ".global {0}",
     "{0}:",
-    "mov rdi, rbp",
-    "mov rbp, rsp",
-    "call {call_rust_fn}",
-    "mov rdi, 1",
-    "call {return_from_coroutine}", // return_from_coroutine(1)
+    "mov rdi, [rsp]",
+    "sub rsp, 8",
+    "call {call_rust_fn}", // call_rust_fn(*%rsp)
+    "lea rdi, [rip + {CURRENT_CORO_CTX}]",
+    "mov rdi, [rdi]",
+    "lea rsi, [rip + {MAIN_CTX}]",
+    "mov rdx, 1",
+    "call {swap_context}", // swap_context(CURRENT_CORO_CTX, &mut MAIN_CTX, 1)
     sym coro_stub,
     call_rust_fn = sym call_rust_fn,
-    return_from_coroutine = sym return_from_coroutine,
+    swap_context = sym swap_context,
+    MAIN_CTX = sym MAIN_CTX,
+    CURRENT_CORO_CTX = sym CURRENT_CORO_CTX,
 );
 
-// swap_ctx
-// %rdi: current_rsp
-// %rsi: next_rsp
-// %rdx: value
+// swap_context
+// current: %rdi
+// next: %rsi
+// val: %rdx
+// -> %rax
 global_asm!(
     ".global {0}",
     "{0}:",
-    "push rbp",
-    "mov rbp, rsp",
     "push r12",
     "push r13",
     "push r14",
     "push r15",
     "push rbx",
-    "push rdx",
-    "mov [rdi], rsp",                   // *current_rsp = %rsp
-    "mov rsp, rsi",                     // %rsp = next_rsp
-    "pop rdx",
+    "push rbp",
+    "mov [rdi + 8], rsp",               // current.resume_rsp = %rsp
+    "lea rax, [rip + co_ret_addr]",
+    "mov [rdi], rax",                   // current.resume_addr = &&co_ret_addr
+    "mov rsp, [rsi + 8]",               // %rsp = next.resume_rsp
+    "mov rax, rdx",                     // %rax = val
+    "jmp [rsi]",                          // goto next.resume_addr
+    "co_ret_addr:",
+    "pop rbp",
     "pop rbx",
     "pop r15",
     "pop r14",
     "pop r13",
     "pop r12",
-    "pop rbp",
-    "ret",                         // return %rax
-    sym swap_ctx,
+    "ret",                              // return %rax
+    sym swap_context,
 );
