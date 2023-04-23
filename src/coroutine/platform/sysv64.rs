@@ -91,7 +91,7 @@ global_asm!(
     ".global {0}",
     "{0}:",
     "mov rdi, [rsp]",
-    "sub rsp, 8",
+    "add rsp, 8",
     "call {call_rust_fn}", // call_rust_fn(*%rsp)
     "lea rdi, [rip + {CURRENT_CORO_CTX}]",
     "mov rdi, [rdi]",
