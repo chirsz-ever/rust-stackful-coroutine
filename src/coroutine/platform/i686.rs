@@ -37,7 +37,7 @@ pub struct Context {
 
 impl Context {
     pub fn new(func: impl FnOnce()) -> Context {
-        assert!(cfg!(all(target_arch = "x86", not(windows))));
+        assert!(cfg!(target_arch = "x86"));
         const DEFAULT_STACK_SIZE: usize = 1024 * 1024 * 8;
         let size = DEFAULT_STACK_SIZE;
         let func = Box::new(Box::new(func) as Box<dyn FnOnce()>);
