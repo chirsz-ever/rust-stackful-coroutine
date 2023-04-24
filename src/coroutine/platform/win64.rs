@@ -37,7 +37,7 @@ pub struct Context {
 
 impl Context {
     pub fn new(func: impl FnOnce()) -> Context {
-        assert!(cfg!(all(target_arch = "x86_64", not(windows))));
+        assert!(cfg!(all(target_arch = "x86_64", windows)));
         const DEFAULT_STACK_SIZE: usize = 1024 * 1024 * 8;
         let size = DEFAULT_STACK_SIZE;
         let func = Box::new(Box::new(func) as Box<dyn FnOnce()>);
@@ -90,8 +90,8 @@ unsafe extern "C" fn call_rust_fn(func: *mut Box<dyn FnOnce()>) {
 global_asm!(
     ".global {0}",
     "{0}:",
-    "mov rdi, [rsp]",
-    "add rsp, 8",
+    "mov rcx, [rsp]",
+    "sub rsp, 8",
     "call {call_rust_fn}", // call_rust_fn(*%rsp)
     "lea rcx, [rip + {CURRENT_CORO_CTX}]",
     "mov rcx, [rcx]",
@@ -122,8 +122,6 @@ global_asm!(
     "push r13",
     "push r14",
     "push r15",
-    "push xmm6",
-    "push xmm7",
     "mov [rcx + 8], rsp",               // current.resume_rsp = %rsp
     "lea rax, [rip + co_ret_addr]",
     "mov [rcx], rax",                   // current.resume_addr = &&co_ret_addr
@@ -131,8 +129,6 @@ global_asm!(
     "mov rax, r8",                      // %rax = val
     "jmp [rdx]",                        // goto next.resume_addr
     "co_ret_addr:",
-    "pop xmm7",
-    "pop xmm6",
     "pop r15",
     "pop r14",
     "pop r13",
